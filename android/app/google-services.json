@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "466189850301",
+    "project_id": "school-7e98a",
+    "storage_bucket": "school-7e98a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:466189850301:android:0547cad425e720e21089d4",
+        "android_client_info": {
+          "package_name": "com.example.school"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD9LN3v7bLsxxVhXU7BPF78noSgzCr1O7U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
