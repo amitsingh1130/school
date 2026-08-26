@@ -67,9 +67,9 @@ class UserModel {
     };
   }
 
-  factory UserModel.fromMap(Map<String, dynamic> map) {
+  factory UserModel.fromMap(Map<String, dynamic> map, [String? docId]) {
     return UserModel(
-      userId: map['userId'] ?? '',
+      userId: (map['userId'] == null || map['userId'].toString().isEmpty) ? (docId ?? "") : map['userId'].toString(),
       password: map['password'] ?? '',
       name: map['name'] ?? '',
       role: map['role'] ?? '',

@@ -12,7 +12,7 @@ class DatabaseService {
       if (doc.exists) {
         var data = doc.data()!;
         if (data['password'] == password) {
-          return UserModel.fromMap(data);
+          return UserModel.fromMap(data, doc.id);
         }
       }
 
@@ -23,7 +23,7 @@ class DatabaseService {
           .get();
       
       if (query.docs.isNotEmpty) {
-        return UserModel.fromMap(query.docs.first.data());
+        return UserModel.fromMap(query.docs.first.data(), query.docs.first.id);
       }
 
       return null;

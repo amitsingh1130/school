@@ -55,34 +55,77 @@ class _SchoolAppState extends State<SchoolApp> {
 
   Future<UserModel?> _initializeApp() async {
     try {
-      FirebaseFirestore.instance.settings = const Settings(
-        persistenceEnabled: true,
-        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
-      );
-
+      // 1. Firestore Settings (Safe Initialization)
       try {
-        if (FirebaseAuth.instance.currentUser == null) {
-          await FirebaseAuth.instance.signInAnonymously();
-        }
-      } catch (authError) {
-        debugPrint("Auth Error: $authError");
+        FirebaseFirestore.instance.settings = const Settings(
+          persistenceEnabled: true,
+          cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+        );
+      } catch (e) {
+        debugPrint("Firestore Settings already set");
       }
 
+      // 2. Auth with Timeout
+      try {
+        if (FirebaseAuth.instance.currentUser == null) {
+          await FirebaseAuth.instance.signInAnonymously().timeout(const Duration(seconds: 5));
+        }
+      } catch (authError) {
+        debugPrint("Auth/Network Timeout: $authError");
+      }
+
+      // 3. Load Local User
       UserModel? user = await PrefService().getUser();
 
       if (user != null) {
-        try {
-          NotificationService nService = NotificationService();
-          await nService.initialize();
-          FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-          await nService.saveTokenToFirestore(user.userId);
-        } catch (serviceError) {
-          debugPrint("Background Services Error: $serviceError");
-        }
+        // 4. Background Sync (Does NOT block the app)
+        // We trim the ID just in case there's a stray space in local storage
+        final String currentUid = user.userId.trim();
+        
+        FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUid)
+            .get()
+            .then((userDoc) async {
+          if (userDoc.exists && userDoc.data() != null) {
+            try {
+              var latestUser = UserModel.fromMap(userDoc.data()!, userDoc.id);
+              await PrefService().saveUser(latestUser);
+              debugPrint("Sync Complete: Latest data saved locally.");
+            } catch (parseError) {
+              debugPrint("Parsing Error: $parseError");
+            }
+          } else {
+            // Document not found with exact ID, try searching by userId field
+            var query = await FirebaseFirestore.instance
+                .collection('users')
+                .where('userId', isEqualTo: currentUid)
+                .limit(1)
+                .get();
+
+            if (query.docs.isNotEmpty) {
+              var latestUser = UserModel.fromMap(query.docs.first.data(), query.docs.first.id);
+              await PrefService().saveUser(latestUser);
+              debugPrint("Sync Complete (via Query): Latest data saved locally.");
+            } else {
+              // IMPORTANT: Don't force logout here to prevent accidental logouts 
+              // on poor network or minor sync issues.
+              debugPrint("User not found in Firestore sync, keeping local session.");
+            }
+          }
+        }).catchError((e) {
+          debugPrint("Background Sync Failed: $e");
+        });
+
+        // Setup Notifications
+        NotificationService nService = NotificationService();
+        nService.initialize().catchError((e) => debugPrint("Notification Init Error: $e"));
+        nService.saveTokenToFirestore(currentUid).catchError((e) => debugPrint("Token Save Error: $e"));
       }
+
       return user;
     } catch (e) {
-      debugPrint("Init Error: $e");
+      debugPrint("Global Init Error: $e");
       return null;
     }
   }

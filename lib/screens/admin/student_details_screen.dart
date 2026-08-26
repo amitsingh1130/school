@@ -7,7 +7,7 @@ import 'package:intl/intl.dart';
 
 class StudentDetailsScreen extends StatelessWidget {
   final String studentDocId;
-  final Map<String, dynamic> studentData;
+  final Map<String, dynamic> studentData; // Initial data
 
   const StudentDetailsScreen({
     super.key,
@@ -20,60 +20,49 @@ class StudentDetailsScreen extends StatelessWidget {
     return FutureBuilder<UserModel?>(
       future: PrefService().getUser(),
       builder: (context, userSnapshot) {
-        final bool isAdmin = userSnapshot.hasData && userSnapshot.data!.role == 'admin';
+        if (userSnapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
 
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(studentData['name'] ?? "Student Details"),
-            actions: [
-              if (isAdmin)
-                IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => EditStudentScreen(
-                          docId: studentDocId,
-                          currentData: studentData,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-            ],
-          ),
-          body: StreamBuilder<QuerySnapshot>(
-            stream: studentData['userId'] != null
-                ? FirebaseFirestore.instance
-                    .collection('users')
-                    .where('userId', isEqualTo: studentData['userId'])
-                    .limit(1)
-                    .snapshots()
-                : FirebaseFirestore.instance
-                    .collection('users')
-                    .where('rollNumber', isEqualTo: studentData['rollNumber'])
-                    .where('classId', isEqualTo: studentData['classId'])
-                    .limit(1)
-                    .snapshots(),
-            builder: (context, snapshot) {
-              String userId = studentData['userId'] ?? studentData['rollNumber'] ?? 'N/A';
-              String password = 'Loading...';
+        final currentUser = userSnapshot.data;
+        // Edit/Delete access: Only Admin, Principal and Vice Principal
+        final bool canEditOrManage = currentUser?.role == 'admin' || currentUser?.role == 'principal' || currentUser?.role == 'vice_principal';
+        // View access for Credentials: Now visible to Teachers as well
+        final bool canSeeCredentials = canEditOrManage || currentUser?.role == 'teacher';
 
-              if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-                var userData = snapshot.data!.docs.first.data() as Map<String, dynamic>;
-                userId = userData['userId'] ?? userId;
-                password = userData['password'] ?? 'N/A';
-              }
+        // --- STEP 1: Listen to Student Record in Real-time ---
+        return StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance.collection('students').doc(studentDocId).snapshots(),
+          builder: (context, studentSnapshot) {
+            if (!studentSnapshot.hasData || !studentSnapshot.data!.exists) {
+              return const Scaffold(body: Center(child: Text("Student not found.")));
+            }
 
-              // Format admission date
-              String admissionDateStr = "N/A";
-              if (studentData['admissionDate'] != null) {
-                DateTime dt = (studentData['admissionDate'] as Timestamp).toDate();
-                admissionDateStr = DateFormat('dd MMM yyyy, hh:mm a').format(dt);
-              }
+            var freshStudentData = studentSnapshot.data!.data() as Map<String, dynamic>;
+            String currentUserId = (freshStudentData['userId'] ?? '').toString().trim();
 
-              return SingleChildScrollView(
+            return Scaffold(
+              appBar: AppBar(
+                title: Text(freshStudentData['name'] ?? "Student Details"),
+                actions: [
+                  if (canEditOrManage)
+                    IconButton(
+                      icon: const Icon(Icons.edit),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => EditStudentScreen(
+                              docId: studentDocId,
+                              currentData: freshStudentData,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                ],
+              ),
+              body: SingleChildScrollView(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
@@ -86,62 +75,76 @@ class StudentDetailsScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
                     
-                // --- LOGIN CREDENTIALS SECTION ---
-                Container(
-                  padding: const EdgeInsets.all(15),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.blue.shade200),
-                  ),
-                  child: Column(
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(Icons.vpn_key, size: 18, color: Colors.blue),
-                          SizedBox(width: 10),
-                          Text("Official Login Credentials", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
-                        ],
-                      ),
-                      const Divider(),
-                      _credentialRow("User ID:", userId),
-                      _credentialRow("Password:", password),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
+                    // --- STEP 2: Listen to User Credentials in Real-time (Restricted) ---
+                    if (canSeeCredentials)
+                      StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('users')
+                            .where('userId', isEqualTo: currentUserId)
+                            .limit(1)
+                            .snapshots(),
+                        builder: (context, userCredSnap) {
+                          String password = 'Loading...';
+                          if (userCredSnap.hasData && userCredSnap.data!.docs.isNotEmpty) {
+                            var userData = userCredSnap.data!.docs.first.data() as Map<String, dynamic>;
+                            password = userData['password'] ?? 'N/A';
+                          } else if (userCredSnap.connectionState != ConnectionState.waiting) {
+                            password = "Not Linked (Tap Edit)";
+                          }
 
-                    _detailTile("Admission ID", studentData['admissionId']),
-                    _detailTile("Admission Date & Time", admissionDateStr),
-                    _detailTile("Full Name", studentData['name']),
-                    _detailTile("Gender", studentData['gender']), // NEW
-                    _detailTile("Roll Number", studentData['rollNumber']),
-                    _detailTile("Class", studentData['classId']),
-                    _detailTile("Father's Name", studentData['fatherName']),
-                    _detailTile("Mother's Name", studentData['motherName']),
-                    _detailTile("Date of Birth", studentData['dob']),
-                    _detailTile("Mobile Number", studentData['mobile']),
-                    _detailTile("Aadhaar Number", studentData['aadhaar']),
-                    _detailTile("Address", studentData['address']), // NEW
-                    _detailTile("Birth Certificate No.", studentData['birthCertNo']),
-                    _detailTile("Registration No.", studentData['regNo']),
+                          return Container(
+                            padding: const EdgeInsets.all(15),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.blue.shade200),
+                            ),
+                            child: Column(
+                              children: [
+                                const Row(
+                                  children: [
+                                    Icon(Icons.vpn_key, size: 18, color: Colors.blue),
+                                    SizedBox(width: 10),
+                                    Text("Official Login Credentials", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+                                  ],
+                                ),
+                                const Divider(),
+                                _credentialRow("User ID:", currentUserId),
+                                _credentialRow("Password:", password),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    if (canSeeCredentials) const SizedBox(height: 20),
+
+                    _detailTile("Admission ID", freshStudentData['admissionId']),
+                    _detailTile("Full Name", freshStudentData['name']),
+                    _detailTile("Gender", freshStudentData['gender']),
+                    _detailTile("Roll Number", freshStudentData['rollNumber']),
+                    _detailTile("Class", freshStudentData['classId']),
+                    _detailTile("Father's Name", freshStudentData['fatherName']),
+                    _detailTile("Mother's Name", freshStudentData['motherName']),
+                    _detailTile("Date of Birth", freshStudentData['dob']),
+                    _detailTile("Mobile Number", freshStudentData['mobile']),
+                    _detailTile("Aadhaar Number", freshStudentData['aadhaar']),
+                    _detailTile("Address", freshStudentData['address']),
+                    _detailTile("Registration No.", freshStudentData['regNo']),
+                    _detailTile("Birth Certificate No.", freshStudentData['birthCertNo']),
                     const SizedBox(height: 30),
                     
-                    if (isAdmin)
+                    if (canEditOrManage)
                       ElevatedButton.icon(
-                        onPressed: () => _confirmDelete(context),
+                        onPressed: () => _confirmDelete(context, currentUserId),
                         icon: const Icon(Icons.delete),
                         label: const Text("Delete Student"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFFF9C4),
-                          foregroundColor: Colors.red,
-                        ),
+                        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFFF9C4), foregroundColor: Colors.red),
                       ),
                   ],
                 ),
-              );
-            }
-          ),
+              ),
+            );
+          },
         );
       }
     );
@@ -170,22 +173,34 @@ class StudentDetailsScreen extends StatelessWidget {
     );
   }
 
-  void _confirmDelete(BuildContext context) {
+  void _confirmDelete(BuildContext context, String currentUserId) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text("Delete Student?"),
-        content: const Text("Are you sure you want to remove this student record?"),
+        content: const Text("Are you sure?"),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
-          TextButton(
-            onPressed: () async {
-              await FirebaseFirestore.instance.collection('students').doc(studentDocId).delete();
+          TextButton(onPressed: () async {
+            // 1. Delete from students collection
+            await FirebaseFirestore.instance.collection('students').doc(studentDocId).delete();
+            
+            // 2. Delete from users collection (Login Account)
+            if (currentUserId.isNotEmpty) {
+              var userQuery = await FirebaseFirestore.instance
+                  .collection('users')
+                  .where('userId', isEqualTo: currentUserId)
+                  .get();
+              for (var doc in userQuery.docs) {
+                await doc.reference.delete();
+              }
+            }
+
+            if (context.mounted) {
               Navigator.pop(ctx); 
               Navigator.pop(context);
-            },
-            child: const Text("Delete", style: TextStyle(color: Colors.red)),
-          ),
+            }
+          }, child: const Text("Delete", style: TextStyle(color: Colors.red))),
         ],
       ),
     );

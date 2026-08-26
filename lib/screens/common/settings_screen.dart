@@ -5,6 +5,7 @@ import '../../services/session_provider.dart';
 import '../../models/user_model.dart';
 import '../../services/pref_service.dart';
 import '../admin/reports_screen.dart';
+import '../admin/session_utility_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -28,11 +29,14 @@ class SettingsScreen extends StatelessWidget {
             onTap: () => _showLanguageDialog(context, langProvider),
           ),
           
-          // SESSION & REPORTS OPTIONS FOR ADMIN
+          // SESSION & REPORTS OPTIONS FOR ADMIN, PRINCIPAL, VICE PRINCIPAL
           FutureBuilder<UserModel?>(
             future: PrefService().getUser(),
             builder: (context, snapshot) {
-              if (snapshot.hasData && snapshot.data!.role == 'admin') {
+              final role = snapshot.data?.role;
+              final bool isManagement = role == 'admin' || role == 'principal' || role == 'vice_principal';
+
+              if (snapshot.hasData && isManagement) {
                 return Column(
                   children: [
                     const Divider(),
@@ -49,6 +53,15 @@ class SettingsScreen extends StatelessWidget {
                       trailing: const Icon(Icons.arrow_forward_ios, size: 14),
                       onTap: () {
                         Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsScreen()));
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.auto_awesome, color: Color(0xFFFFD700)),
+                      title: const Text("New Session Utility"),
+                      subtitle: const Text("Bulk promote students & re-assign staff"),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const SessionUtilityScreen()));
                       },
                     ),
                   ],

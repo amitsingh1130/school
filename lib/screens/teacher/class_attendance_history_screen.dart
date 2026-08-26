@@ -25,7 +25,20 @@ class ClassAttendanceHistoryScreen extends StatelessWidget {
           Map<String, String> holidays = {};
           if (holidaySnapshot.hasData) {
             for (var doc in holidaySnapshot.data!.docs) {
-              holidays[doc.id] = doc['reason'] ?? "Holiday";
+              var data = doc.data() as Map<String, dynamic>;
+              String target = data['target'] ?? "All School";
+              String? targetClass = data['targetClass'];
+              
+              bool applies = false;
+              if (target == "All School" || target == "Students Only") {
+                applies = true;
+              } else if (target == "Specific Class" && targetClass == classId) {
+                applies = true;
+              }
+
+              if (applies) {
+                holidays[doc.id] = data['reason'] ?? "Holiday";
+              }
             }
           }
 
@@ -127,6 +140,14 @@ class ClassAttendanceHistoryScreen extends StatelessWidget {
                 builder: (context, snap) {
                   if (!snap.hasData) return const Center(child: CircularProgressIndicator());
                   var students = snap.data!.docs;
+
+                  // SORT BY ROLL NUMBER
+                  students.sort((a, b) {
+                    int r1 = int.tryParse(a['rollNumber']?.toString() ?? '999') ?? 999;
+                    int r2 = int.tryParse(b['rollNumber']?.toString() ?? '999') ?? 999;
+                    return r1.compareTo(r2);
+                  });
+
                   return ListView.builder(
                     controller: scrollController,
                     itemCount: students.length,

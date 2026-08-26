@@ -128,7 +128,7 @@ class NotificationsScreen extends StatelessWidget {
                                   if (isHomework && onSwitchTab != null) {
                                     onSwitchTab!(1);
                                   } else if (isFee) {
-                                    Navigator.push(context, MaterialPageRoute(builder: (_) => FeeHistoryScreen(studentId: user.userId)));
+                                    Navigator.push(context, MaterialPageRoute(builder: (_) => FeeHistoryScreen(user: user)));
                                   }
                                 } else if (user.role == 'teacher') {
                                   if (isLeave) {

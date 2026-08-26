@@ -30,14 +30,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 
   List<Widget> _getScreens() {
-    if (widget.user.role == 'admin') {
+    final String role = widget.user.role;
+    if (role == 'admin' || role == 'principal' || role == 'vice_principal') {
       return [
         AdminHomeScreen(user: widget.user),
         const FeeManagementScreen(),
         NotificationsScreen(user: widget.user, onSwitchTab: _onSwitchTab),
         ProfileScreen(user: widget.user),
       ];
-    } else if (widget.user.role == 'teacher') {
+    } else if (role == 'teacher') {
       return [
         TeacherHomeScreen(user: widget.user),
         // Unified Attendance Tab
@@ -51,7 +52,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       ];
     } else {
       return [
-        const StudentHomeScreen(),
+        StudentHomeScreen(user: widget.user),
         HomeworkListScreen(classId: widget.user.classId ?? ''),
         NotificationsScreen(user: widget.user, onSwitchTab: _onSwitchTab),
         ProfileScreen(user: widget.user),
@@ -61,14 +62,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   List<BottomNavigationBarItem> _getNavItems() {
     final lang = Provider.of<LanguageProvider>(context);
-    if (widget.user.role == 'admin') {
+    final String role = widget.user.role;
+    if (role == 'admin' || role == 'principal' || role == 'vice_principal') {
       return [
         BottomNavigationBarItem(icon: const Icon(Icons.home), label: lang.translate('home')),
         BottomNavigationBarItem(icon: const Icon(Icons.money), label: lang.translate('fee')),
         BottomNavigationBarItem(icon: const Icon(Icons.notifications), label: lang.translate('alert')),
         BottomNavigationBarItem(icon: const Icon(Icons.person), label: lang.translate('profile')),
       ];
-    } else if (widget.user.role == 'teacher') {
+    } else if (role == 'teacher') {
       return [
         BottomNavigationBarItem(icon: const Icon(Icons.home), label: lang.translate('home')),
         BottomNavigationBarItem(icon: const Icon(Icons.how_to_reg), label: lang.translate('attendance')),
@@ -88,12 +90,16 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Color selectedColor = const Color(0xFFFFD700); // Default Yellow
+    if (widget.user.role == 'principal') selectedColor = Colors.deepPurple;
+    if (widget.user.role == 'vice_principal') selectedColor = Colors.indigo;
+
     return Scaffold(
       body: _getScreens()[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: const Color(0xFFFFD700),
+        selectedItemColor: selectedColor,
         backgroundColor: Colors.white,
         unselectedItemColor: Colors.grey,
         onTap: (index) => setState(() => _selectedIndex = index),

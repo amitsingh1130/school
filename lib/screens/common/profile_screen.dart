@@ -27,18 +27,18 @@ class ProfileScreen extends StatelessWidget {
             const SizedBox(height: 30),
             
             // --- DETAILS OPTION (Hidden for Admin) ---
-            if (user.role != 'admin')
+            if (user.role != 'admin' && user.role != 'principal' && user.role != 'vice_principal')
               Card(
                 child: ListTile(
                   leading: const Icon(Icons.info_outline, color: Color(0xFFFFD700)),
-                  title: Text(user.role == 'student' ? "Student Details" : "Teacher Details"),
+                  title: Text(user.role == 'student' ? "Student Details" : "Staff Details"),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: () {
                     Navigator.push(context, MaterialPageRoute(builder: (_) => FullDetailsScreen(user: user)));
                   },
                 ),
               ),
-            if (user.role != 'admin') const SizedBox(height: 10),
+            if (user.role != 'admin' && user.role != 'principal' && user.role != 'vice_principal') const SizedBox(height: 10),
 
             // --- SETTINGS OPTION ---
             Card(

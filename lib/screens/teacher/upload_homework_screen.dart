@@ -33,14 +33,22 @@ class _UploadHomeworkScreenState extends State<UploadHomeworkScreen> {
           'description': _descController.text.trim(),
           'teacherId': widget.teacher.userId,
           'teacherName': widget.teacher.name,
+          'teacherGender': widget.teacher.gender,
           'createdAt': FieldValue.serverTimestamp(),
         });
+
+        // Format name for notification
+        String honorific = "";
+        if (widget.teacher.gender == "Male") honorific = " Sir";
+        if (widget.teacher.gender == "Female") honorific = " Ma'am";
+        String firstName = widget.teacher.name.split(" ").first;
+        String formattedName = "$firstName$honorific";
 
         // Send Notification to selected class
         await FirebaseFirestore.instance.collection('notifications').add({
           'toClassId': selectedClass,
           'title': "New Homework: ${_subjectController.text.trim()}",
-          'message': "Homework assigned by ${widget.teacher.name}. Please check the homework tab.",
+          'message': "Homework assigned by $formattedName. Please check the homework tab.",
           'type': 'homework',
           'createdAt': FieldValue.serverTimestamp(),
         });

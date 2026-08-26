@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/user_model.dart';
 import '../../services/database_service.dart';
+import '../../services/pref_service.dart';
 import 'edit_teacher_screen.dart';
 import 'teacher_details_screen.dart';
 import 'package:intl/intl.dart';
@@ -11,48 +12,58 @@ class TeacherManagementScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Teacher Management"),
-      ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .where('role', isEqualTo: 'teacher')
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-          var teachers = snapshot.data!.docs;
-          if (teachers.isEmpty) return const Center(child: Text("No teachers added yet."));
+    return FutureBuilder<UserModel?>(
+      future: PrefService().getUser(),
+      builder: (context, userSnapshot) {
+        final currentUser = userSnapshot.data;
+        final bool canAddTeacher = currentUser?.role == 'admin' || currentUser?.role == 'principal' || currentUser?.role == 'vice_principal';
 
-          return ListView.builder(
-            itemCount: teachers.length,
-            itemBuilder: (context, index) {
-              var doc = teachers[index];
-              var data = doc.data() as Map<String, dynamic>;
-              return ListTile(
-                leading: const CircleAvatar(
-                  backgroundColor: Color(0xFFFFF9C4),
-                  child: Icon(Icons.person, color: Color(0xFFFFD700)),
-                ),
-                title: Text(data['name']),
-                subtitle: Text("User ID: ${data['userId']} | Class: ${data['classId'] ?? 'None'}"),
-                onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => TeacherDetailsScreen(docId: doc.id, teacherData: data)));
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text("Teacher Management"),
+          ),
+          body: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .where('role', whereIn: ['teacher', 'principal', 'vice_principal'])
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+              var teachers = snapshot.data!.docs;
+              if (teachers.isEmpty) return const Center(child: Text("No teachers added yet."));
+
+              return ListView.builder(
+                itemCount: teachers.length,
+                itemBuilder: (context, index) {
+                  var doc = teachers[index];
+                  var data = doc.data() as Map<String, dynamic>;
+                  return ListTile(
+                    leading: const CircleAvatar(
+                      backgroundColor: Color(0xFFFFF9C4),
+                      child: Icon(Icons.person, color: Color(0xFFFFD700)),
+                    ),
+                    title: Text(data['name']),
+                    subtitle: Text("User ID: ${data['userId']} | Class: ${data['classId'] ?? 'None'}"),
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => TeacherDetailsScreen(docId: doc.id, teacherData: data)));
+                    },
+                  );
                 },
               );
             },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const AddTeacherFormScreen()));
-        },
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        label: const Text("Add Teacher"),
-        icon: const Icon(Icons.group_add),
-      ),
+          ),
+          floatingActionButton: canAddTeacher 
+            ? FloatingActionButton.extended(
+                onPressed: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const AddTeacherFormScreen()));
+                },
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                label: const Text("Add Teacher"),
+                icon: const Icon(Icons.group_add),
+              )
+            : null,
+        );
+      }
     );
   }
 }
@@ -80,7 +91,8 @@ class _AddTeacherFormScreenState extends State<AddTeacherFormScreen> {
   final TextEditingController _subjectController = TextEditingController();
   final TextEditingController _classController = TextEditingController();
   final TextEditingController _joiningDateController = TextEditingController();
-  final TextEditingController _designationController = TextEditingController();
+  String? _selectedDesignation;
+  final List<String> _designations = ["Teacher", "Principal", "Vice Principal"];
   String? _selectedGender; // NEW
 
   bool _isLoading = false;
@@ -103,11 +115,15 @@ class _AddTeacherFormScreenState extends State<AddTeacherFormScreen> {
       }
       setState(() => _isLoading = true);
       try {
+        String role = 'teacher';
+        if (_selectedDesignation == 'Principal') role = 'principal';
+        if (_selectedDesignation == 'Vice Principal') role = 'vice_principal';
+
         UserModel teacher = UserModel(
           userId: _userIdController.text.trim(),
           password: _passwordController.text.trim(),
           name: _nameController.text.trim(),
-          role: 'teacher',
+          role: role,
           classId: _classController.text.trim().toUpperCase(),
           fatherName: _fatherController.text.trim(),
           motherName: _motherController.text.trim(),
@@ -118,7 +134,7 @@ class _AddTeacherFormScreenState extends State<AddTeacherFormScreen> {
           gender: _selectedGender, // NEW
           subject: _subjectController.text.trim(),
           joiningDate: _joiningDateController.text.trim(),
-          designation: _designationController.text.trim(),
+          designation: _selectedDesignation,
         );
 
         await _db.createUser(teacher);
@@ -165,7 +181,19 @@ class _AddTeacherFormScreenState extends State<AddTeacherFormScreen> {
               _buildField(_aadhaarController, "Aadhaar Number"),
               _buildField(_addressController, "Address"), // NEW
               _buildField(_subjectController, "Main Subject"),
-              _buildField(_designationController, "Designation"),
+              
+              // --- DESIGNATION DROPDOWN ---
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: DropdownButtonFormField<String>(
+                  value: _selectedDesignation,
+                  decoration: const InputDecoration(labelText: "Designation", border: OutlineInputBorder()),
+                  items: _designations.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
+                  onChanged: (val) => setState(() => _selectedDesignation = val),
+                  validator: (val) => val == null ? 'Required' : null,
+                ),
+              ),
+
               _buildDateField(_joiningDateController, "Joining Date", () => _selectDate(_joiningDateController)),
               _buildField(_classController, "Assign Class Teacher of (e.g. 10-A)"),
               const Divider(height: 30),

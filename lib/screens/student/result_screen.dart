@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../services/session_provider.dart';
+import '../../services/result_report_service.dart';
 
 class StudentResultScreen extends StatelessWidget {
   final String studentId;
@@ -40,17 +41,30 @@ class StudentResultScreen extends StatelessWidget {
                 child: ExpansionTile(
                   leading: const CircleAvatar(backgroundColor: Color(0xFFFFF9C4), child: Icon(Icons.assessment, color: Colors.orange)),
                   title: Text(data['examName'] ?? 'Exam', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text("Total: ${data['totalObtained']}/${data['totalMax']} | Percentage: ${data['percentage']}%"),
+                  subtitle: Text("Total: ${data['totalObtained']}/${data['totalMax']} | Percentage: ${data['percentage']}%${data['grade'] != null ? ' | Grade: ${data['grade']}' : ''}"),
                   children: [
                     Container(
                       padding: const EdgeInsets.all(16),
                       child: Column(
                         children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text("SUBJECT-WISE DETAILS", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.grey)),
+                              TextButton.icon(
+                                onPressed: () => ResultReportService.generateReportCard(data),
+                                icon: const Icon(Icons.print, size: 16),
+                                label: const Text("PRINT PDF", style: TextStyle(fontSize: 12)),
+                              ),
+                            ],
+                          ),
+                          const Divider(),
                           const Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text("Subject", style: TextStyle(fontWeight: FontWeight.bold)),
-                              Text("Marks", style: TextStyle(fontWeight: FontWeight.bold)),
+                              Expanded(flex: 3, child: Text("Subject", style: TextStyle(fontWeight: FontWeight.bold))),
+                              Expanded(flex: 2, child: Text("Marks", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold))),
+                              Expanded(flex: 1, child: Text("Grade", textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold))),
                             ],
                           ),
                           const Divider(),
@@ -60,8 +74,9 @@ class StudentResultScreen extends StatelessWidget {
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(sub['name']),
-                                  Text("${sub['obtained']} / ${sub['max']}"),
+                                  Expanded(flex: 3, child: Text(sub['name'] ?? '')),
+                                  Expanded(flex: 2, child: Text("${sub['obtained']} / ${sub['max']}", textAlign: TextAlign.center)),
+                                  Expanded(flex: 1, child: Text(sub['grade'] ?? '-', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue), textAlign: TextAlign.right)),
                                 ],
                               ),
                             ),
@@ -73,6 +88,17 @@ class StudentResultScreen extends StatelessWidget {
                               Text("${data['totalObtained']} / ${data['totalMax']}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
                             ],
                           ),
+                          if (data['grade'] != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text("GRADE", style: TextStyle(fontWeight: FontWeight.bold)),
+                                  Text("${data['grade']}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+                                ],
+                              ),
+                            ),
                         ],
                       ),
                     )

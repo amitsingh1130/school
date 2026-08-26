@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../services/session_provider.dart';
+import 'homework_detail_screen.dart';
 
 class HomeworkListScreen extends StatelessWidget {
   final String classId;
@@ -40,24 +41,45 @@ class HomeworkListScreen extends StatelessWidget {
             itemCount: homeworks.length,
             itemBuilder: (context, index) {
               var data = homeworks[index].data() as Map<String, dynamic>;
+              
+              // Format Teacher Name
               String teacherName = data['teacherName'] ?? 'Subject Teacher';
+              String? gender = data['teacherGender'];
+              if (gender != null) {
+                String honorific = (gender == "Male") ? " Sir" : (gender == "Female" ? " Ma'am" : "");
+                teacherName = "${teacherName.split(" ").first}$honorific";
+              }
+
               DateTime? dt = (data['createdAt'] as Timestamp?)?.toDate();
               String timeStr = dt != null ? DateFormat('dd MMM yyyy | hh:mm a').format(dt) : '';
 
               return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: ListTile(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => HomeworkDetailScreen(homeworkData: data),
+                      ),
+                    );
+                  },
                   leading: const CircleAvatar(backgroundColor: Color(0xFFFFF9C4), child: Icon(Icons.book, color: Colors.blue)),
                   title: Text(data['subject'] ?? 'Subject', style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(data['description'] ?? ''),
+                      Text(
+                        data['description'] ?? '',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       const SizedBox(height: 8),
                       Text("By: $teacherName", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.blueGrey)),
                       Text(timeStr, style: const TextStyle(fontSize: 10, color: Colors.grey)),
                     ],
                   ),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 14),
                 ),
               );
             },

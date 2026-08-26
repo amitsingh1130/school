@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import '../../models/user_model.dart';
+import '../../services/pref_service.dart';
 
 class EditTeacherScreen extends StatefulWidget {
   final String docId;
@@ -26,13 +28,16 @@ class _EditTeacherScreenState extends State<EditTeacherScreen> {
   late TextEditingController _addressController; // NEW
   late TextEditingController _subjectController;
   late TextEditingController _joiningDateController;
-  late TextEditingController _designationController;
+  String? _selectedDesignation;
+  final List<String> _designations = ["Teacher", "Principal", "Vice Principal"];
   String? _selectedGender; // NEW
   bool _isLoading = false;
+  bool _canEditCredentials = false;
 
   @override
   void initState() {
     super.initState();
+    _checkPermission();
     var d = widget.currentData;
     _nameController = TextEditingController(text: d['name']);
     _userIdController = TextEditingController(text: d['userId']);
@@ -46,8 +51,17 @@ class _EditTeacherScreenState extends State<EditTeacherScreen> {
     _addressController = TextEditingController(text: d['address']); // NEW
     _subjectController = TextEditingController(text: d['subject']);
     _joiningDateController = TextEditingController(text: d['joiningDate']);
-    _designationController = TextEditingController(text: d['designation']);
+    _selectedDesignation = d['designation'];
     _selectedGender = d['gender']; // NEW
+  }
+
+  void _checkPermission() async {
+    UserModel? user = await PrefService().getUser();
+    if (mounted) {
+      setState(() {
+        _canEditCredentials = user?.role == 'admin' || user?.role == 'principal' || user?.role == 'vice_principal';
+      });
+    }
   }
 
   Future<void> _selectDate(TextEditingController controller) async {
@@ -69,11 +83,16 @@ class _EditTeacherScreenState extends State<EditTeacherScreen> {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       try {
+        String role = 'teacher';
+        if (_selectedDesignation == 'Principal') role = 'principal';
+        if (_selectedDesignation == 'Vice Principal') role = 'vice_principal';
+
         await FirebaseFirestore.instance.collection('users').doc(widget.docId).update({
           'name': _nameController.text.trim(),
           'userId': _userIdController.text.trim(),
           'password': _passwordController.text.trim(),
           'classId': _classController.text.trim().toUpperCase(),
+          'role': role,
           'fatherName': _fatherController.text.trim(),
           'motherName': _motherController.text.trim(),
           'dob': _dobController.text.trim(),
@@ -83,7 +102,7 @@ class _EditTeacherScreenState extends State<EditTeacherScreen> {
           'gender': _selectedGender, // NEW
           'subject': _subjectController.text.trim(),
           'joiningDate': _joiningDateController.text.trim(),
-          'designation': _designationController.text.trim(),
+          'designation': _selectedDesignation,
         });
         if (mounted) {
           Navigator.pop(context); 
@@ -123,11 +142,23 @@ class _EditTeacherScreenState extends State<EditTeacherScreen> {
                 ),
               ),
 
-              _buildField(_userIdController, "User ID"),
-              _buildField(_passwordController, "Password"),
+              _buildField(_userIdController, "User ID", isReadOnly: !_canEditCredentials),
+              _buildField(_passwordController, "Password", isReadOnly: !_canEditCredentials),
               _buildField(_classController, "Class Teacher of"),
               _buildField(_subjectController, "Subject"),
-              _buildField(_designationController, "Designation"),
+              
+              // --- DESIGNATION DROPDOWN ---
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: DropdownButtonFormField<String>(
+                  value: _selectedDesignation,
+                  decoration: const InputDecoration(labelText: "Designation", border: OutlineInputBorder()),
+                  items: _designations.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
+                  onChanged: (val) => setState(() => _selectedDesignation = val),
+                  validator: (val) => val == null ? 'Required' : null,
+                ),
+              ),
+
               _buildDateField(_joiningDateController, "Joining Date", () => _selectDate(_joiningDateController)),
               _buildField(_fatherController, "Father's Name"),
               _buildField(_motherController, "Mother's Name"),
@@ -149,7 +180,7 @@ class _EditTeacherScreenState extends State<EditTeacherScreen> {
     );
   }
 
-  Widget _buildField(TextEditingController controller, String label, {bool isRequired = true}) {
+  Widget _buildField(TextEditingController controller, String label, {bool isRequired = true, bool isReadOnly = false}) {
     int? maxLength;
     if (label.contains("Mobile")) maxLength = 10;
     if (label.contains("Aadhaar")) maxLength = 12;
@@ -159,9 +190,16 @@ class _EditTeacherScreenState extends State<EditTeacherScreen> {
       child: TextFormField(
         controller: controller,
         maxLength: maxLength,
+        readOnly: isReadOnly,
         maxLines: label == "Address" ? 3 : 1,
         keyboardType: (label.contains("Mobile") || label.contains("Aadhaar")) ? TextInputType.number : TextInputType.text,
-        decoration: InputDecoration(labelText: label, border: const OutlineInputBorder(), counterText: ""),
+        decoration: InputDecoration(
+          labelText: label, 
+          border: const OutlineInputBorder(), 
+          counterText: "",
+          filled: isReadOnly,
+          fillColor: isReadOnly ? Colors.grey.shade100 : null,
+        ),
         validator: (val) {
           if (isRequired && (val == null || val.isEmpty)) return 'Field required';
           if (val != null && val.isNotEmpty) {

@@ -101,12 +101,22 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const AddStudentScreen()));
+      floatingActionButton: FutureBuilder<UserModel?>(
+        future: PrefService().getUser(),
+        builder: (context, userSnapshot) {
+          final currentUser = userSnapshot.data;
+          final bool canAddStudent = currentUser?.role == 'admin' || currentUser?.role == 'principal' || currentUser?.role == 'vice_principal';
+
+          if (!canAddStudent) return const SizedBox.shrink();
+
+          return FloatingActionButton.extended(
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const AddStudentScreen()));
+            },
+            label: const Text("Add Student"),
+            icon: const Icon(Icons.person_add),
+          );
         },
-        label: const Text("Add Student"),
-        icon: const Icon(Icons.person_add),
       ),
     );
   }

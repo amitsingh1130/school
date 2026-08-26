@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../services/session_provider.dart';
 import 'detailed_result_entry_screen.dart';
+import '../../services/result_report_service.dart';
 
 class EnterMarksScreen extends StatefulWidget {
   final String classId;
@@ -189,11 +190,24 @@ class _EnterMarksScreenState extends State<EnterMarksScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text("SUBJECT-WISE DETAILS", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.grey)),
+                            TextButton.icon(
+                              onPressed: () => ResultReportService.generateReportCard(data),
+                              icon: const Icon(Icons.print, size: 16),
+                              label: const Text("PRINT PDF", style: TextStyle(fontSize: 12)),
+                            ),
+                          ],
+                        ),
+                        const Divider(),
                         const Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text("Subject", style: TextStyle(fontWeight: FontWeight.bold)),
-                            Text("Marks", style: TextStyle(fontWeight: FontWeight.bold)),
+                            Expanded(flex: 3, child: Text("Subject", style: TextStyle(fontWeight: FontWeight.bold))),
+                            Expanded(flex: 2, child: Text("Marks", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold))),
+                            Expanded(flex: 1, child: Text("Grade", textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold))),
                           ],
                         ),
                         const Divider(),
@@ -203,8 +217,9 @@ class _EnterMarksScreenState extends State<EnterMarksScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(sub['name'] ?? ''),
-                                Text("${sub['obtained']} / ${sub['max']}"),
+                                Expanded(flex: 3, child: Text(sub['name'] ?? '')),
+                                Expanded(flex: 2, child: Text("${sub['obtained']} / ${sub['max']}", textAlign: TextAlign.center)),
+                                Expanded(flex: 1, child: Text(sub['grade'] ?? '-', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue), textAlign: TextAlign.right)),
                               ],
                             ),
                           ),
@@ -226,6 +241,15 @@ class _EnterMarksScreenState extends State<EnterMarksScreen> {
                               style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
                           ],
                         ),
+                        if (data['grade'] != null)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text("GRADE", style: TextStyle(fontWeight: FontWeight.bold)),
+                              Text(data['grade'], 
+                                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+                            ],
+                          ),
                       ],
                     ),
                   )

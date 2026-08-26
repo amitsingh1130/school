@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import '../../models/user_model.dart';
+import '../../services/pref_service.dart';
 
 class EditStudentScreen extends StatefulWidget {
   final String docId;
@@ -25,12 +27,16 @@ class _EditStudentScreenState extends State<EditStudentScreen> {
   late TextEditingController _birthCertController;
   late TextEditingController _regNoController;
   late TextEditingController _classController;
+  late TextEditingController _userIdController;
+  late TextEditingController _passwordController;
   String? _selectedGender; // NEW
   bool _isLoading = false;
+  bool _canEditCredentials = false;
 
   @override
   void initState() {
     super.initState();
+    _checkPermission();
     var d = widget.currentData;
     _nameController = TextEditingController(text: d['name']);
     _rollController = TextEditingController(text: d['rollNumber']);
@@ -43,7 +49,18 @@ class _EditStudentScreenState extends State<EditStudentScreen> {
     _birthCertController = TextEditingController(text: d['birthCertNo']);
     _regNoController = TextEditingController(text: d['regNo']);
     _classController = TextEditingController(text: d['classId']);
+    _userIdController = TextEditingController(text: d['userId']);
+    _passwordController = TextEditingController(text: d['password']);
     _selectedGender = d['gender']; // NEW
+  }
+
+  void _checkPermission() async {
+    UserModel? user = await PrefService().getUser();
+    if (mounted) {
+      setState(() {
+        _canEditCredentials = user?.role == 'admin' || user?.role == 'principal' || user?.role == 'vice_principal';
+      });
+    }
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -93,6 +110,8 @@ class _EditStudentScreenState extends State<EditStudentScreen> {
           'birthCertNo': _birthCertController.text.trim(),
           'regNo': _regNoController.text.trim(),
           'classId': _classController.text.trim().toUpperCase(),
+          'userId': _userIdController.text.trim(),
+          'password': _passwordController.text.trim(),
         });
 
         // Also update the matching User document if exists
@@ -113,6 +132,8 @@ class _EditStudentScreenState extends State<EditStudentScreen> {
             'rollNumber': _rollController.text.trim(),
             'address': _addressController.text.trim(), // NEW
             'gender': _selectedGender, // NEW
+            'userId': _userIdController.text.trim(),
+            'password': _passwordController.text.trim(),
           });
         }
 
@@ -156,6 +177,8 @@ class _EditStudentScreenState extends State<EditStudentScreen> {
 
               _buildField(_rollController, "Roll Number"),
               _buildField(_classController, "Class"),
+              _buildField(_userIdController, "User ID", isReadOnly: !_canEditCredentials),
+              _buildField(_passwordController, "Password", isReadOnly: !_canEditCredentials),
               _buildField(_fatherController, "Father's Name"),
               _buildField(_motherController, "Mother's Name"),
               _buildDateField(_dobController, "Date of Birth", () => _selectDate(context)),
@@ -178,7 +201,7 @@ class _EditStudentScreenState extends State<EditStudentScreen> {
     );
   }
 
-  Widget _buildField(TextEditingController controller, String label, {bool isRequired = true}) {
+  Widget _buildField(TextEditingController controller, String label, {bool isRequired = true, bool isReadOnly = false}) {
     int? maxLength;
     if (label.contains("Mobile")) maxLength = 10;
     if (label.contains("Aadhaar")) maxLength = 12;
@@ -188,9 +211,16 @@ class _EditStudentScreenState extends State<EditStudentScreen> {
       child: TextFormField(
         controller: controller,
         maxLength: maxLength,
+        readOnly: isReadOnly,
         maxLines: label == "Address" ? 3 : 1,
         keyboardType: (label.contains("Mobile") || label.contains("Aadhaar") || label.contains("Roll")) ? TextInputType.number : TextInputType.text,
-        decoration: InputDecoration(labelText: label, border: const OutlineInputBorder(), counterText: ""),
+        decoration: InputDecoration(
+          labelText: label, 
+          border: const OutlineInputBorder(), 
+          counterText: "",
+          filled: isReadOnly,
+          fillColor: isReadOnly ? Colors.grey.shade100 : null,
+        ),
         validator: (val) {
           if (isRequired && (val == null || val.isEmpty)) return 'Field required';
           if (val != null && val.isNotEmpty) {

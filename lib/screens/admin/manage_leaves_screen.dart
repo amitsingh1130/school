@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 class ManageLeavesScreen extends StatefulWidget {
-  final String viewRole; // 'teacher' or 'student'
+  final String? viewRole; // 'teacher' or 'student'
+  final List<String>? viewRoles; // List of roles to view (e.g. ['teacher', 'principal'])
   final String? classId; // Optional: filter by class if provided (for teachers)
 
-  const ManageLeavesScreen({super.key, required this.viewRole, this.classId});
+  const ManageLeavesScreen({super.key, this.viewRole, this.viewRoles, this.classId});
 
   @override
   State<ManageLeavesScreen> createState() => _ManageLeavesScreenState();
@@ -61,21 +63,76 @@ class _ManageLeavesScreenState extends State<ManageLeavesScreen> {
   }
 
   Future<void> _updateStatus(String docId, String status, String remark) async {
+    // 1. Update Leave Record
     await FirebaseFirestore.instance.collection('leaves').doc(docId).update({
       'status': status,
       'adminRemark': remark,
       'respondedAt': FieldValue.serverTimestamp(),
     });
+
+    // 2. If Approved and is Staff, Mark in Attendance
+    if (status == 'approved') {
+      var doc = await FirebaseFirestore.instance.collection('leaves').doc(docId).get();
+      if (doc.exists) {
+        var data = doc.data() as Map<String, dynamic>;
+        String role = data['role'] ?? '';
+        if (role == 'teacher' || role == 'principal' || role == 'vice_principal') {
+          await _markAttendanceForApprovedLeave(data);
+        }
+      }
+    }
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Leave Request $status")));
     }
   }
 
+  Future<void> _markAttendanceForApprovedLeave(Map<String, dynamic> leaveData) async {
+    try {
+      String tId = leaveData['userId'];
+      String leaveType = leaveData['leaveType'] ?? 'Full Day';
+      String status = (leaveType == 'Half Day') ? "Half Day" : "On Leave";
+      
+      DateTime start = DateTime.parse(leaveData['startDate']);
+      DateTime end = DateTime.parse(leaveData['endDate']);
+      
+      // Iterate through all days in the range
+      for (int i = 0; i <= end.difference(start).inDays; i++) {
+        DateTime current = start.add(Duration(days: i));
+        String dateStr = DateFormat('yyyy-MM-dd').format(current);
+        
+        // Skip Sundays
+        if (current.weekday == DateTime.sunday) continue;
+
+        // Check if already marked present (don't overwrite present with leave)
+        var existing = await FirebaseFirestore.instance.collection('teacher_attendance').doc("${tId}_$dateStr").get();
+        if (existing.exists) {
+          String currentStatus = (existing.data()?['status'] ?? '').toString().toLowerCase();
+          if (currentStatus == 'present' || currentStatus == 'p') continue; 
+        }
+
+        await FirebaseFirestore.instance.collection('teacher_attendance').doc("${tId}_$dateStr").set({
+          'teacherId': tId,
+          'date': dateStr,
+          'time': (leaveType == 'Half Day') ? "Applied (${leaveData['halfDaySession']})" : "Applied via Leave",
+          'status': status,
+          'timestamp': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+    } catch (e) {
+      debugPrint("Error auto-marking leave attendance: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    Query query = FirebaseFirestore.instance
-        .collection('leaves')
-        .where('role', isEqualTo: widget.viewRole);
+    Query query = FirebaseFirestore.instance.collection('leaves');
+    
+    if (widget.viewRoles != null) {
+      query = query.where('role', whereIn: widget.viewRoles);
+    } else if (widget.viewRole != null) {
+      query = query.where('role', isEqualTo: widget.viewRole);
+    }
     
     // Apply class filter if provided
     if (widget.classId != null) {
@@ -100,7 +157,7 @@ class _ManageLeavesScreenState extends State<ManageLeavesScreen> {
             appBar: AppBar(
               title: Text(widget.classId != null 
                   ? "Class ${widget.classId} Leaves" 
-                  : "Manage ${widget.viewRole[0].toUpperCase()}${widget.viewRole.substring(1)} Leaves"),
+                  : "Manage ${widget.viewRoles != null ? 'Staff' : (widget.viewRole?[0].toUpperCase() ?? '') + (widget.viewRole?.substring(1) ?? '')} Leaves"),
               bottom: TabBar(
                 labelColor: Colors.black,
                 unselectedLabelColor: Colors.black54,
@@ -128,7 +185,7 @@ class _ManageLeavesScreenState extends State<ManageLeavesScreen> {
     if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
     
     if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-      return Center(child: Text("No records found for ${widget.viewRole}s."));
+      return Center(child: Text("No records found."));
     }
 
     var allDocs = snapshot.data!.docs;
@@ -176,7 +233,7 @@ class _ManageLeavesScreenState extends State<ManageLeavesScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text("Type: $leaveType$sessionInfo", style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 12)),
-                Text("Date: ${data['startDate']} ${leaveType == 'Full Day' ? 'to ' + data['endDate'] : ''}"),
+                Text("Date: ${data['startDate']} ${leaveType == 'Full Day' ? 'to ${data['endDate']}' : ''}"),
               ],
             ),
             trailing: _getStatusChip(status),

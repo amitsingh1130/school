@@ -128,7 +128,7 @@ class AttendanceReportService {
     
     students.sort((a, b) => (int.tryParse(a['roll']!) ?? 0).compareTo(int.tryParse(b['roll']!) ?? 0));
 
-    Map<String, String> holidays = await _fetchHolidays(month, year);
+    Map<String, String> holidays = await _fetchHolidays(month, year, isTeacherReport: false, classId: classId);
     Map<String, Map<String, dynamic>> monthlyData = {};
     int totalClassWorkingDays = 0;
 
@@ -177,14 +177,14 @@ class AttendanceReportService {
 
     pw.MemoryImage? logoImage = await _loadLogo();
 
-    var teacherSnap = await FirebaseFirestore.instance.collection('users').where('role', isEqualTo: 'teacher').get();
+    var teacherSnap = await FirebaseFirestore.instance.collection('users').where('role', whereIn: ['teacher', 'principal', 'vice_principal']).get();
     var teachers = teacherSnap.docs.map((d) => {
       'id': d['userId'].toString(),
       'name': d['name'].toString(),
     }).toList();
     teachers.sort((a, b) => a['name']!.compareTo(b['name']!));
 
-    Map<String, String> holidays = await _fetchHolidays(month, year);
+    Map<String, String> holidays = await _fetchHolidays(month, year, isTeacherReport: true);
     Map<String, Map<String, dynamic>> monthlyData = {};
     int totalWorkingDays = 0;
 
@@ -197,7 +197,14 @@ class AttendanceReportService {
       var attQuery = await FirebaseFirestore.instance.collection('teacher_attendance').where('date', isEqualTo: dateStr).get();
       Map<String, String> dayRecords = {};
       for (var doc in attQuery.docs) {
-        dayRecords[doc['teacherId']] = "P";
+        String status = (doc['status'] ?? 'P').toString().toUpperCase();
+        if (status == 'PRESENT') status = 'P';
+        else if (status == 'ABSENT') status = 'A';
+        else if (status.contains('HALF')) status = 'H';
+        else if (status.contains('LEAVE')) status = 'L';
+        else status = 'P'; // Default
+        
+        dayRecords[doc['teacherId']] = status;
       }
       monthlyData[i.toString()] = dayRecords;
       
@@ -230,20 +237,40 @@ class AttendanceReportService {
 
   static Future<pw.MemoryImage?> _loadLogo() async {
     try {
-      final bytes = await rootBundle.load('assets/icon/app_icon.jpeg');
+      final bytes = await rootBundle.load('assets/icon/app_icon.png');
       return pw.MemoryImage(bytes.buffer.asUint8List());
     } catch (e) {
+      debugPrint("Attendance Logo Error: $e");
       return null;
     }
   }
 
-  static Future<Map<String, String>> _fetchHolidays(int month, int year) async {
+  static Future<Map<String, String>> _fetchHolidays(int month, int year, {bool isTeacherReport = false, String? classId}) async {
     Map<String, String> holidays = {};
     var holidaySnap = await FirebaseFirestore.instance.collection('holidays').get();
     for (var doc in holidaySnap.docs) {
       DateTime dt = DateFormat('yyyy-MM-dd').parse(doc.id);
       if (dt.month == month && dt.year == year) {
-        holidays[dt.day.toString()] = doc['reason'] ?? 'Holiday';
+        var data = doc.data() as Map<String, dynamic>;
+        String target = data['target'] ?? "All School";
+        String? targetClass = data['targetClass'];
+        
+        bool applies = false;
+        if (isTeacherReport) {
+          // Staff report: only "All School" applies
+          if (target == "All School") applies = true;
+        } else {
+          // Student report: "All School", "Students Only", or "Specific Class"
+          if (target == "All School" || target == "Students Only") {
+            applies = true;
+          } else if (target == "Specific Class" && targetClass == classId) {
+            applies = true;
+          }
+        }
+
+        if (applies) {
+          holidays[dt.day.toString()] = data['reason'] ?? 'Holiday';
+        }
       }
     }
     return holidays;

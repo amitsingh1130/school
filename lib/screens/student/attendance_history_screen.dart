@@ -19,7 +19,20 @@ class AttendanceHistoryScreen extends StatelessWidget {
           Map<String, String> holidays = {};
           if (holidaySnapshot.hasData) {
             for (var doc in holidaySnapshot.data!.docs) {
-              holidays[doc.id] = doc['reason'] ?? "Holiday";
+              var data = doc.data() as Map<String, dynamic>;
+              String target = data['target'] ?? "All School";
+              String? targetClass = data['targetClass'];
+              
+              bool applies = false;
+              if (target == "All School" || target == "Students Only") {
+                applies = true;
+              } else if (target == "Specific Class" && targetClass == classId) {
+                applies = true;
+              }
+
+              if (applies) {
+                holidays[doc.id] = data['reason'] ?? "Holiday";
+              }
             }
           }
 

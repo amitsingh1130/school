@@ -77,14 +77,17 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
   }
 
   Future<void> _sendNotifications() async {
-    // Notify Admin
-    await FirebaseFirestore.instance.collection('notifications').add({
-      'toRole': 'admin',
-      'title': "New Leave Request",
-      'message': "${widget.user.name} (${widget.user.role}) applied for ${_leaveType}.",
-      'type': 'leave',
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    // Notify Management (Admin, Principal, Vice Principal)
+    List<String> managementRoles = ['admin', 'principal', 'vice_principal'];
+    for (String role in managementRoles) {
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'toRole': role,
+        'title': "New Leave Request",
+        'message': "${widget.user.name} (${widget.user.role}) applied for ${_leaveType}.",
+        'type': 'leave',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
 
     // If student applies, also notify Class Teacher
     if (widget.user.role == 'student' && widget.user.classId != null) {

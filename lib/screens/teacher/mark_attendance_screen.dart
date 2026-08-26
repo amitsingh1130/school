@@ -29,10 +29,22 @@ class _MarkAttendanceScreenState extends State<MarkAttendanceScreen> {
   void _checkHoliday() async {
     var doc = await FirebaseFirestore.instance.collection('holidays').doc(today).get();
     if (doc.exists && mounted) {
-      setState(() {
-        isHoliday = true;
-        holidayReason = doc.data()?['reason'] ?? "School Holiday";
-      });
+      String target = doc.data()?['target'] ?? "All School";
+      String? targetClass = doc.data()?['targetClass'];
+      
+      bool appliesToThisClass = false;
+      if (target == "All School" || target == "Students Only") {
+        appliesToThisClass = true;
+      } else if (target == "Specific Class" && targetClass == widget.classId) {
+        appliesToThisClass = true;
+      }
+
+      if (appliesToThisClass) {
+        setState(() {
+          isHoliday = true;
+          holidayReason = doc.data()?['reason'] ?? "School Holiday";
+        });
+      }
     }
   }
 
