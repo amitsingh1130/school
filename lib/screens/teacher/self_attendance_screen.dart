@@ -87,9 +87,23 @@ class _TeacherSelfAttendanceScreenState extends State<TeacherSelfAttendanceScree
   void _markAttendance() async {
     if (_isHoliday || _isMarked) return;
 
-    setState(() => _isMarked = true); // Temporary loading state or similar
+    // 1. Check Time Limit (09:00 AM)
+    DateTime now = DateTime.now();
+    if (now.hour > 9 || (now.hour == 9 && now.minute > 0)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Attendance time expired. It's past 09:00 AM."),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+      return;
+    }
 
-    // 1. Check Location
+    setState(() => _isMarked = true); 
+
+    // 2. Check Location
     bool inSchool = await LocationService.checkLocation(context);
     if (!inSchool) {
       setState(() => _isMarked = false);

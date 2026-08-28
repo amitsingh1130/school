@@ -15,6 +15,7 @@ class FeeReportService {
     String? regNo,
     String? fatherName,
     String? motherName,
+    String? collectedBy,
   }) async {
     final pdf = pw.Document();
     
@@ -46,6 +47,7 @@ class FeeReportService {
               _infoRow("Class:", classId),
               _infoRow("Session:", academicSession),
               _infoRow("Payment For:", feeTitle),
+              if (collectedBy != null) _infoRow("Collected By:", collectedBy),
               pw.SizedBox(height: 20),
               pw.Container(
                 padding: const pw.EdgeInsets.all(10),

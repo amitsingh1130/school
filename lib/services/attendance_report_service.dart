@@ -177,12 +177,15 @@ class AttendanceReportService {
 
     pw.MemoryImage? logoImage = await _loadLogo();
 
-    var teacherSnap = await FirebaseFirestore.instance.collection('users').where('role', whereIn: ['teacher', 'principal', 'vice_principal']).get();
-    var teachers = teacherSnap.docs.map((d) => {
+    var staffSnap = await FirebaseFirestore.instance
+        .collection('users')
+        .where('role', whereIn: ['teacher', 'principal', 'vice_principal'])
+        .get();
+    var staff = staffSnap.docs.map((d) => {
       'id': d['userId'].toString(),
       'name': d['name'].toString(),
     }).toList();
-    teachers.sort((a, b) => a['name']!.compareTo(b['name']!));
+    staff.sort((a, b) => a['name']!.compareTo(b['name']!));
 
     Map<String, String> holidays = await _fetchHolidays(month, year, isTeacherReport: true);
     Map<String, Map<String, dynamic>> monthlyData = {};
@@ -222,12 +225,12 @@ class AttendanceReportService {
             border: pw.TableBorder.all(width: 0.3, color: PdfColors.grey),
             children: [
               _buildTableHeader(daysInMonth, year, month, holidays, isTeacher: true),
-              for (int j = 0; j < teachers.length; j++)
-                _buildRow(teachers[j], monthlyData, daysInMonth, year, month, holidays, isTeacher: true, serial: (j + 1).toString()),
+              for (int j = 0; j < staff.length; j++)
+                _buildRow(staff[j], monthlyData, daysInMonth, year, month, holidays, isTeacher: true, serial: (j + 1).toString()),
             ],
           ),
           pw.SizedBox(height: 15),
-          _buildSummary(teachers, monthlyData, daysInMonth, year, month, holidays, totalWorkingDays),
+          _buildSummary(staff, monthlyData, daysInMonth, year, month, holidays, totalWorkingDays),
         ],
       ),
     );

@@ -20,6 +20,8 @@ class UserModel {
   final String? regNo;
   final String? birthCertNo;
   final String? fcmToken; 
+  final String? admissionId;
+  final dynamic admissionDate;
 
   UserModel({
     required this.userId,
@@ -41,6 +43,8 @@ class UserModel {
     this.regNo,
     this.birthCertNo,
     this.fcmToken,
+    this.admissionId,
+    this.admissionDate,
   });
 
   Map<String, dynamic> toMap() {
@@ -64,6 +68,8 @@ class UserModel {
       'regNo': regNo,
       'birthCertNo': birthCertNo,
       'fcmToken': fcmToken,
+      'admissionId': admissionId,
+      'admissionDate': admissionDate,
     };
   }
 
@@ -88,6 +94,8 @@ class UserModel {
       regNo: map['regNo'],
       birthCertNo: map['birthCertNo'],
       fcmToken: map['fcmToken'],
+      admissionId: map['admissionId'],
+      admissionDate: map['admissionDate'],
     );
   }
 }

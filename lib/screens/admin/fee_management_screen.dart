@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../services/session_provider.dart';
 import '../../services/fee_report_service.dart';
+import '../../services/pref_service.dart';
+import '../../models/user_model.dart';
 import 'fee_defaulters_screen.dart';
 import 'receipt_search_screen.dart'; // Import the new screen
 
@@ -21,8 +23,20 @@ class _FeeManagementScreenState extends State<FeeManagementScreen> {
   final TextEditingController _dueDayController = TextEditingController(text: "10"); 
   final TextEditingController _remarkController = TextEditingController(); // NEW: For specific exam name
   String? _selectedCategory; 
-  final List<String> _categories = ["Admission Fee", "Monthly Fee", "Examination Fee", "Other"];
+  final List<String> _categories = ["Admission Fee", "Monthly Fee", "Half Yearly Exam Fee", "Annual Exam Fee"];
   String? _selectedClassForIndividual;
+  UserModel? _currentUser;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    final user = await PrefService().getUser();
+    if (mounted) setState(() => _currentUser = user);
+  }
 
   Future<void> _selectDueDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
@@ -114,58 +128,60 @@ class _FeeManagementScreenState extends State<FeeManagementScreen> {
               padding: const EdgeInsets.all(16.0),
               child: ListView(
                 children: [
-                  const Text("Define Fee Category for Class", style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 20),
-                  TextField(controller: _classController, decoration: const InputDecoration(labelText: "Class (e.g. 10)", border: OutlineInputBorder())),
-                  const SizedBox(height: 10),
-                  
-                  DropdownButtonFormField<String>(
-                    value: _selectedCategory,
-                    decoration: const InputDecoration(labelText: "Fee Category", border: OutlineInputBorder()),
-                    items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                    onChanged: (v) => setState(() => _selectedCategory = v),
-                  ),
-                  const SizedBox(height: 10),
-
-                  TextField(controller: _amountController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Amount", border: OutlineInputBorder())),
-                  const SizedBox(height: 10),
-
-                  if (_selectedCategory != "Monthly Fee") ...[
-                    TextField(
-                      controller: _remarkController,
-                      decoration: const InputDecoration(labelText: "Remark/Exam Name (e.g. Term 1, Annual)", border: OutlineInputBorder()),
+                  if (_currentUser?.role == 'admin') ...[
+                    const Text("Define Fee Category for Class", style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 20),
+                    TextField(controller: _classController, decoration: const InputDecoration(labelText: "Class (e.g. 10)", border: OutlineInputBorder())),
+                    const SizedBox(height: 10),
+                    
+                    DropdownButtonFormField<String>(
+                      value: _selectedCategory,
+                      decoration: const InputDecoration(labelText: "Fee Category", border: OutlineInputBorder()),
+                      items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                      onChanged: (v) => setState(() => _selectedCategory = v),
                     ),
                     const SizedBox(height: 10),
-                    TextField(
-                      controller: _dueDateController,
-                      readOnly: true,
-                      onTap: () => _selectDueDate(context),
-                      decoration: const InputDecoration(labelText: "Due Date", border: OutlineInputBorder(), suffixIcon: Icon(Icons.calendar_today)),
-                    ),
-                  ],
-                  
-                  if (_selectedCategory == "Monthly Fee")
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          TextField(
-                            controller: _dueDayController,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: "Due Day of Month (e.g. 5, 10, 15)",
-                              border: OutlineInputBorder(),
-                              helperText: "Notification will be sent on this day every month",
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
 
-                  const SizedBox(height: 20),
-                  ElevatedButton(onPressed: _setClassFee, child: const Text("SAVE TO STRUCTURE")),
-                  const Divider(height: 40),
+                    TextField(controller: _amountController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Amount", border: OutlineInputBorder())),
+                    const SizedBox(height: 10),
+
+                    if (_selectedCategory != "Monthly Fee") ...[
+                      TextField(
+                        controller: _remarkController,
+                        decoration: const InputDecoration(labelText: "Remark/Exam Name (e.g. Term 1, Annual)", border: OutlineInputBorder()),
+                      ),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: _dueDateController,
+                        readOnly: true,
+                        onTap: () => _selectDueDate(context),
+                        decoration: const InputDecoration(labelText: "Due Date", border: OutlineInputBorder(), suffixIcon: Icon(Icons.calendar_today)),
+                      ),
+                    ],
+                    
+                    if (_selectedCategory == "Monthly Fee")
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            TextField(
+                              controller: _dueDayController,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                labelText: "Due Day of Month (e.g. 5, 10, 15)",
+                                border: OutlineInputBorder(),
+                                helperText: "Notification will be sent on this day every month",
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    const SizedBox(height: 20),
+                    ElevatedButton(onPressed: _setClassFee, child: const Text("SAVE TO STRUCTURE")),
+                    const Divider(height: 40),
+                  ],
                   const Text("Current Structure", style: TextStyle(fontWeight: FontWeight.bold)),
                   _buildCurrentStructureList(),
                 ],
@@ -206,10 +222,12 @@ class _FeeManagementScreenState extends State<FeeManagementScreen> {
               child: ListTile(
                 title: Text("$displayTitle (Class ${data['classId']})", style: const TextStyle(fontWeight: FontWeight.bold)),
                 subtitle: Text("₹${data['amount']} | Due: $dueInfo"),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red, size: 20),
-                  onPressed: () => FirebaseFirestore.instance.collection('class_fees').doc(docs[index].id).delete(),
-                ),
+                trailing: _currentUser?.role == 'admin' 
+                  ? IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                      onPressed: () => FirebaseFirestore.instance.collection('class_fees').doc(docs[index].id).delete(),
+                    )
+                  : null,
               ),
             );
           },
@@ -415,7 +433,15 @@ class _FeeManagementScreenState extends State<FeeManagementScreen> {
               child: ListTile(
                 leading: const CircleAvatar(backgroundColor: Colors.green, child: Icon(Icons.receipt_long, color: Colors.white, size: 20)),
                 title: Text(data['feeTitle']),
-                subtitle: Text("Date: ${data['date']} | Receipt: ${data['receiptNo']}"),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Date: ${data['date']} | Receipt: ${data['receiptNo']}"),
+                    if (data['collectedByName'] != null)
+                      Text("Collected By: ${data['collectedByName']} (${data['collectedByRole']})", 
+                           style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.grey)),
+                  ],
+                ),
                 trailing: Text("₹${data['amount']}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               ),
             );
@@ -440,7 +466,7 @@ class _FeeManagementScreenState extends State<FeeManagementScreen> {
               DropdownButtonFormField<String>(
                 value: selectedCategory,
                 decoration: const InputDecoration(labelText: "Select Fee Category", border: OutlineInputBorder()),
-                items: ["Admission Fee", "Monthly Fee", "Examination Fee"].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                items: ["Admission Fee", "Monthly Fee", "Half Yearly Exam Fee", "Annual Exam Fee"].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                 onChanged: (v) => setDialogState(() => selectedCategory = v),
               ),
               const SizedBox(height: 15),
@@ -568,6 +594,8 @@ class _FeeManagementScreenState extends State<FeeManagementScreen> {
           'academicSession': session,
           'date': DateFormat('yyyy-MM-dd').format(DateTime.now()),
           'createdAt': FieldValue.serverTimestamp(),
+          'collectedByName': _currentUser?.name ?? "System",
+          'collectedByRole': _currentUser?.role?.toUpperCase() ?? "ADMIN",
         });
 
         itemsPaid += (itemsPaid.isEmpty ? "" : ", ") + fee['feeTitle'];
@@ -599,6 +627,7 @@ class _FeeManagementScreenState extends State<FeeManagementScreen> {
                   regNo: studentData['regNo'],
                   fatherName: studentData['fatherName'],
                   motherName: studentData['motherName'],
+                  collectedBy: "${_currentUser?.name} (${_currentUser?.role?.toUpperCase()})",
                 );
               },
               icon: const Icon(Icons.print),
@@ -623,6 +652,8 @@ class _FeeManagementScreenState extends State<FeeManagementScreen> {
       'academicSession': session,
       'date': DateFormat('yyyy-MM-dd').format(DateTime.now()),
       'createdAt': FieldValue.serverTimestamp(),
+      'collectedByName': _currentUser?.name ?? "System",
+      'collectedByRole': _currentUser?.role?.toUpperCase() ?? "ADMIN",
     });
     
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Payment Successful for $title!")));

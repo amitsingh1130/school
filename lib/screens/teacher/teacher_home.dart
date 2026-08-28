@@ -11,6 +11,8 @@ import 'enter_marks_screen.dart';
 import '../common/leave_management_screen.dart';
 import '../admin/manage_leaves_screen.dart';
 import '../admin/student_management_screen.dart';
+import '../admin/fee_defaulters_screen.dart';
+import '../admin/admin_results_screen.dart';
 
 class TeacherHomeScreen extends StatelessWidget {
   final UserModel user;
@@ -137,6 +139,20 @@ class TeacherHomeScreen extends StatelessWidget {
                 _teacherAction(Icons.people_outline, "Stud. Leaves", Colors.blueGrey, () {
                   if (user.classId != null) {
                     Navigator.push(context, MaterialPageRoute(builder: (_) => ManageLeavesScreen(viewRole: 'student', classId: user.classId!)));
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("No class assigned to you.")));
+                  }
+                }),
+                _teacherAction(Icons.currency_rupee, "Fee Status", Colors.teal, () {
+                  if (user.classId != null) {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const FeeDefaultersScreen()));
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("No class assigned to you.")));
+                  }
+                }),
+                _teacherAction(Icons.assessment, "Stud. Results", Colors.blueAccent, () {
+                  if (user.classId != null) {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => AdminStudentListForResultScreen(classId: user.classId!)));
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("No class assigned to you.")));
                   }

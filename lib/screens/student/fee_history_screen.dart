@@ -60,7 +60,7 @@ class FeeHistoryScreen extends StatelessWidget {
             }
           }
 
-          // 3. Add Examination & Other Fees
+          // 3. Add Exam & Other Specific Fees
           for (var doc in structureDocs) {
             var data = doc.data() as Map<String, dynamic>;
             if (data['feeCategory'] != 'Admission Fee' && data['feeCategory'] != 'Monthly Fee') {

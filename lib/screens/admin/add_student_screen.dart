@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../models/student_model.dart';
 import '../../models/user_model.dart';
@@ -75,6 +76,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
         var scsData = await _dbService.getNextScsData();
         String autoId = scsData['id'];
         int autoNum = scsData['number'];
+        var now = FieldValue.serverTimestamp();
 
         UserModel newUser = UserModel(
           userId: uId,
@@ -92,6 +94,8 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
           gender: _selectedGender, // NEW
           regNo: _regNoController.text.trim(),
           birthCertNo: _birthCertController.text.trim(),
+          admissionId: autoId,
+          admissionDate: now,
         );
 
         StudentModel newStudent = StudentModel(
@@ -99,6 +103,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
           userId: uId,
           admissionId: autoId,
           admissionNumber: autoNum,
+          admissionDate: now,
           name: _nameController.text.trim(),
           rollNumber: _rollController.text.trim(),
           fatherName: _fatherController.text.trim(),

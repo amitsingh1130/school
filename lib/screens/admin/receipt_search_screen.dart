@@ -78,6 +78,9 @@ class _ReceiptSearchScreenState extends State<ReceiptSearchScreen> {
           'feeTitle': titles.join(", "),
           'academicSession': firstDoc['academicSession'],
           'date': firstDoc['date'],
+          'collectedBy': firstDoc['collectedByName'] != null 
+              ? "${firstDoc['collectedByName']} (${firstDoc['collectedByRole']})"
+              : null,
         };
         _isLoading = false;
       });
@@ -173,6 +176,7 @@ class _ReceiptSearchScreenState extends State<ReceiptSearchScreen> {
                     regNo: _foundReceipt!['regNo'],
                     fatherName: _foundReceipt!['fatherName'],
                     motherName: _foundReceipt!['motherName'],
+                    collectedBy: _foundReceipt!['collectedBy'],
                   );
                 },
                 icon: const Icon(Icons.print),

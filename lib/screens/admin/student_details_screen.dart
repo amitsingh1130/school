@@ -119,6 +119,7 @@ class StudentDetailsScreen extends StatelessWidget {
                     if (canSeeCredentials) const SizedBox(height: 20),
 
                     _detailTile("Admission ID", freshStudentData['admissionId']),
+                    _detailTile("Admission Date & Time", _formatTimestamp(freshStudentData['admissionDate'])),
                     _detailTile("Full Name", freshStudentData['name']),
                     _detailTile("Gender", freshStudentData['gender']),
                     _detailTile("Roll Number", freshStudentData['rollNumber']),
@@ -171,6 +172,14 @@ class StudentDetailsScreen extends StatelessWidget {
         subtitle: Text(value?.toString() ?? "N/A", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
       ),
     );
+  }
+
+  String _formatTimestamp(dynamic timestamp) {
+    if (timestamp == null) return "N/A";
+    if (timestamp is Timestamp) {
+      return DateFormat('dd-MM-yyyy | hh:mm a').format(timestamp.toDate());
+    }
+    return timestamp.toString();
   }
 
   void _confirmDelete(BuildContext context, String currentUserId) {

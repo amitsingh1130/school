@@ -188,9 +188,9 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 const SizedBox(width: 10),
                 _buildLiveStat(
                     context,
-                  "Teacher Attendance",
+                  "Staff Attendance",
                   FirebaseFirestore.instance.collection('teacher_attendance').where('date', isEqualTo: today).snapshots(),
-                  FirebaseFirestore.instance.collection('users').where('role', isEqualTo: 'teacher').snapshots(), // Strictly Teachers
+                  FirebaseFirestore.instance.collection('users').where('role', whereIn: ['teacher', 'principal', 'vice_principal']).snapshots(), 
                   Colors.purple,
                   () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TeacherAttendanceHistoryScreen())),
                   isStudent: false

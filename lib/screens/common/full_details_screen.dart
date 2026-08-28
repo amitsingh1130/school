@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 class FullDetailsScreen extends StatelessWidget {
   final UserModel user;
@@ -14,6 +16,10 @@ class FullDetailsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(20.0),
         children: [
+          if (user.role == 'student') ...[
+            _detailItem("Admission ID", user.admissionId ?? "N/A"),
+            _detailItem("Admission Date & Time", _formatTimestamp(user.admissionDate)),
+          ],
           _detailItem("Full Name", user.name),
           if (user.role == 'student') _detailItem("Roll Number", user.rollNumber ?? "N/A"),
           _detailItem("Father's Name", user.fatherName ?? "N/A"),
@@ -42,5 +48,13 @@ class FullDetailsScreen extends StatelessWidget {
         subtitle: Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
       ),
     );
+  }
+
+  String _formatTimestamp(dynamic timestamp) {
+    if (timestamp == null) return "N/A";
+    if (timestamp is Timestamp) {
+      return DateFormat('dd-MM-yyyy | hh:mm a').format(timestamp.toDate());
+    }
+    return timestamp.toString();
   }
 }

@@ -55,10 +55,10 @@ class ReportsScreen extends StatelessWidget {
                     ),
                     const SizedBox(width: 10),
                     _attendanceStatCard(
-                      "Total Teacher Attendance Today", 
+                      "Total Staff Attendance Today", 
                       today,
                       FirebaseFirestore.instance.collection('teacher_attendance').where('date', isEqualTo: today).snapshots(),
-                      FirebaseFirestore.instance.collection('users').where('role', isEqualTo: 'teacher').snapshots(),
+                      FirebaseFirestore.instance.collection('users').where('role', whereIn: ['teacher', 'principal', 'vice_principal']).snapshots(),
                       Colors.purple,
                       isStudent: false
                     ),

@@ -39,15 +39,18 @@ class TeacherAttendanceHistoryScreen extends StatelessWidget {
       }
     }
 
-    // 4. Fetch All Teachers
-    var teachersSnap = await FirebaseFirestore.instance.collection('users').where('role', isEqualTo: 'teacher').get();
+    // 4. Fetch All Staff (Teachers, Principal, Vice Principal)
+    var staffSnap = await FirebaseFirestore.instance
+        .collection('users')
+        .where('role', whereIn: ['teacher', 'principal', 'vice_principal'])
+        .get();
     
     // 5. Fetch Existing Attendance for Today
     var attSnap = await FirebaseFirestore.instance.collection('teacher_attendance').where('date', isEqualTo: today).get();
     Set<String> markedIds = attSnap.docs.map((d) => d['teacherId'].toString()).toSet();
 
     int absentCount = 0;
-    for (var doc in teachersSnap.docs) {
+    for (var doc in staffSnap.docs) {
       String tId = doc['userId'];
       if (!markedIds.contains(tId)) {
         // Mark as Absent
@@ -63,7 +66,7 @@ class TeacherAttendanceHistoryScreen extends StatelessWidget {
     }
 
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Sync Complete: $absentCount teachers marked ABSENT."), backgroundColor: Colors.orange));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Sync Complete: $absentCount staff members marked ABSENT."), backgroundColor: Colors.orange));
     }
   }
 
@@ -183,7 +186,10 @@ class TeacherAttendanceDateDetails extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text("Staff Status ($date)")),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('users').where('role', isEqualTo: 'teacher').snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .where('role', whereIn: ['teacher', 'principal', 'vice_principal'])
+            .snapshots(),
         builder: (context, userSnap) {
           if (!userSnap.hasData) return const Center(child: CircularProgressIndicator());
           var teachers = userSnap.data!.docs;
